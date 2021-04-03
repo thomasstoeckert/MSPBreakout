@@ -3,15 +3,27 @@
 #include "LcdDriver/lcd_driver.h"
 #include "graphics.h"
 #include "math_utils.h"
+#include "levels.h"
 #include <stdio.h>
 
 Graphics_Context g_sContext;      // Declare our graphics context for the library
+Graphics_Rectangle blocks[2] = {
+                                {10, 10, 40, 40},
+                                {60, 10, 100, 20},
+};
+
+const unsigned char numBlocks = 2;
+const Graphics_Rectangle nullBlock = {
+                                      128, 128, 128, 128
+};
 
 #define redLED BIT0
 #define circleRadius 2
 
 int main(void)
 {
+    unsigned char i;
+
     // Standard MSP430 Behavior
 	WDTCTL   =  WDTPW | WDTHOLD;	  // Stop Watchdog Timer
 	PM5CTL0 &= ~LOCKLPM5;             // Enable GPI
@@ -32,6 +44,13 @@ int main(void)
 
 	Initialize_Graphics(&g_sContext); // Prepare the display with initial commands
 
+    // Draw our set of blocks
+	Graphics_setForegroundColor(&g_sContext, GRAPHICS_COLOR_BLUE);
+	for(i = 0; i < numBlocks; i++) {
+	    if(!IsNullBlock(&blocks[i]))
+	        Graphics_fillRectangle(&g_sContext, &blocks[i]);
+	}
+
 	/////////////////////////////////////////////////////
 	//               Initialize update timer           //
 	/////////////////////////////////////////////////////
@@ -50,15 +69,14 @@ int main(void)
 __interrupt void FIXED_UPDATE(void) {
     static int velocity_x = 1, velocity_y = 2;
     static int pos_x = 64, pos_y = 64;
+    unsigned char i;
 
     // Clear our old position
     Graphics_setForegroundColor(&g_sContext, GRAPHICS_COLOR_BLACK);
-    Graphics_fillCircle(&g_sContext, pos_y, pos_x, 6);
+    Graphics_fillCircle(&g_sContext, pos_x, pos_y, circleRadius);
 
     // Calculate our new position
-
     int temp_pos_x = pos_x, temp_pos_y = pos_y;
-
     temp_pos_x += velocity_x;
     temp_pos_y += velocity_y;
 
@@ -73,22 +91,38 @@ __interrupt void FIXED_UPDATE(void) {
     // Check if circle collides with walls
     char isCollidingWalls = IsCollidingWalls(&circleBounds);
 
+    // Check if circle is colliding with our blocks
+    for(i = 0; i < numBlocks; i++) {
+        if(IsNullBlock(&blocks[i])) continue;
+
+        char isCollidingBlock = IsCollidingAABB(&blocks[i], &circleBounds);
+        //isCollidingWalls |= isCollidingBlock;
+        if(isCollidingBlock) {
+            Graphics_setForegroundColor(&g_sContext, GRAPHICS_COLOR_BLACK);
+            Graphics_fillRectangle(&g_sContext, &blocks[i]);
+            blocks[i] = nullBlock;
+        }
+    }
+
     // Our circle is colliding
     if(isCollidingWalls != 0) {
+        // Find the colliding direction, flipping velocity
         if((isCollidingWalls & (COLLIDING_NORTH | COLLIDING_SOUTH)) != 0)
             velocity_x = -velocity_x;
         if((isCollidingWalls & (COLLIDING_EAST | COLLIDING_WEST)) != 0)
             velocity_y = -velocity_y;
 
+        // Apply the new vectors
         pos_x += velocity_x;
         pos_y += velocity_y;
     } else {
+        // These old calcs are good, use them.
         pos_x = temp_pos_x;
         pos_y = temp_pos_y;
     }
 
     Graphics_setForegroundColor(&g_sContext, GRAPHICS_COLOR_WHITE);
-    Graphics_fillCircle(&g_sContext, pos_y, pos_x, circleRadius);
+    Graphics_fillCircle(&g_sContext, pos_x, pos_y, circleRadius);
 
     TA0CTL &= ~TAIFG;
 

@@ -17,8 +17,9 @@
 #define COLLIDING_SOUTH BIT2
 #define COLLIDING_WEST  BIT3
 
-char IsCollidingAABB(Graphics_Rectangle r1, Graphics_Rectangle r2);
+char IsCollidingAABB(Graphics_Rectangle *r1, Graphics_Rectangle *r2);
 char IsCollidingWalls(Graphics_Rectangle *ball);
+char IsNullBlock(Graphics_Rectangle *block);
 
 
 #endif /* MATH_UTILS_H_ */
