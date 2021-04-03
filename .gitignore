@@ -1,2 +1,9 @@
 # Ignore CCS data
 /.launches
+/Debug/
+/.settings
+/targetConfigs
+.ccsproject
+.cproject
+.project
+lnk_msp430fr6989.cmd
