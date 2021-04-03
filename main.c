@@ -21,10 +21,14 @@ const Graphics_Rectangle nullBlock = {
 };
 
 const int paddle_width = 20, paddle_height = 10, paddle_y = 120;
-int paddle_x = 1;
+unsigned int paddle_x = 1;
 
 #define redLED BIT0
+#define JOY_X BIT2
 #define circleRadius 2
+
+void initializeADC(void);
+int readADC(unsigned int*data);
 
 int main(void)
 {
@@ -42,6 +46,8 @@ int main(void)
 	// Configure debug LED
 	P1DIR |=  redLED;
 	P1OUT &= ~redLED;
+
+	initializeADC();
 
 	/////////////////////////////////////////////////////
 	//           Initialize graphics library           //
@@ -82,6 +88,20 @@ __interrupt void FIXED_UPDATE(void) {
     static int pos_x = 64, pos_y = 64;
     unsigned char i;
 
+    // Check if paddle is colliding with blocks
+    Graphics_Rectangle paddle_rect = {
+                                      paddle_x, paddle_y, paddle_x + paddle_width, paddle_y + paddle_height
+    };
+
+    Graphics_setForegroundColor(&g_sContext, GRAPHICS_COLOR_BLACK);
+    Graphics_fillRectangle(&g_sContext, &paddle_rect);
+
+    readADC(&paddle_x);
+    paddle_x = ((paddle_x - 10) / 4096.0) * 128;
+
+    paddle_rect.xMin = paddle_x;
+    paddle_rect.xMax = paddle_x + paddle_width;
+
     // Calculate our new position
     int temp_pos_x = pos_x, temp_pos_y = pos_y;
     temp_pos_x += velocity_x;
@@ -112,10 +132,6 @@ __interrupt void FIXED_UPDATE(void) {
         }
     }
 
-    // Check if paddle is colliding with blocks
-    Graphics_Rectangle paddle_rect = {
-                                      paddle_x, paddle_y, paddle_x + paddle_width, paddle_y + paddle_height
-    };
     char isCollidingPaddle = IsCollidingAABB(&circleBounds, &paddle_rect);
     isCollidingWalls |= isCollidingPaddle;
 
@@ -150,4 +166,61 @@ __interrupt void FIXED_UPDATE(void) {
     TA0CTL &= ~TAIFG;
 
     P1OUT ^= redLED;
+}
+
+void initializeADC(void) {
+    // Divert pins for analong functionality
+    P9SEL1 |= JOY_X;
+    P9SEL0 |= JOY_X;
+
+    // Turn on the ADC module
+    ADC12CTL0 |= ADC12ON;
+
+    // Turn off the ENC (Enable Conversion) bit while modifying the config
+    ADC12CTL0 &= ~ADC12ENC;
+
+    // Set ADC12SHT0 (Determined number of cycles)
+    ADC12CTL0 |= BIT8 | BIT9;
+
+    // *********** ADC12CTL1 ******** //
+    // Set ADC12SHS (select ADC12SC bit as the trigger)
+    // Set ADC12SHP bit
+    // Set ADC12DIV (select the divider you determined)
+    // Set ADC12SSEL (select MODOSC)
+    // Looks like only bit 9 needs to be set high.
+    ADC12CTL1 = BIT9;
+
+    // *********** ADC12CTL2 ******** //
+    // Set ADC12RES (select 12-bit resolution)
+    // [5:4] 10b
+    // Set ADC12DF  (select unsigned binary format)
+    // [3] 0b
+    ADC12CTL2 = BIT5;
+
+    // *********** ADC12CTL3 ******** //
+    // Leave all fields default
+
+    // *********** ADC12MCTL0 ******** //
+    // Set ADC12VRSEL (select VR+=AVCC, VR-=AVSS)
+    // [11:8] 0000b
+    // Set ADC12INCH  (select channel A10)
+    // [4:0] 01010b;
+    ADC12MCTL0 = BIT3 | BIT1;
+
+    // Turn on ENC to signal the end of configuration
+    ADC12CTL0 |= ADC12ENC;
+
+    return;
+}
+
+int readADC(unsigned int* data) {
+    // Set ADC12SC bit
+    ADC12CTL0 |= BIT0;
+    // Wait for ADC12Busy bit to clear
+    while((ADC12CTL1 & BIT0) != 0) {}
+
+    // Read result from register ADC12MEM0
+    (*data) = ADC12MEM0;
+
+    return 1;
 }
