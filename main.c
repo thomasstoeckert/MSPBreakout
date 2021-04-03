@@ -57,11 +57,10 @@ int main(void)
 	        Graphics_fillRectangle(&g_sContext, &blocks[i]);
 	}
 
-	/*// Draw the initial paddle
+	// Draw the initial paddle
 	Graphics_setForegroundColor(&g_sContext, GRAPHICS_COLOR_RED);
 	Graphics_Rectangle initial_paddle = {paddle_x, paddle_y, paddle_x + paddle_width, paddle_y + paddle_height};
 	Graphics_fillRectangle(&g_sContext, &initial_paddle);
-    */
 
 	/////////////////////////////////////////////////////
 	//               Initialize update timer           //
@@ -82,10 +81,6 @@ __interrupt void FIXED_UPDATE(void) {
     static int velocity_x = 1, velocity_y = 2;
     static int pos_x = 64, pos_y = 64;
     unsigned char i;
-
-    // Clear our old position
-    Graphics_setForegroundColor(&g_sContext, GRAPHICS_COLOR_BLACK);
-    Graphics_fillCircle(&g_sContext, pos_x, pos_y, circleRadius);
 
     // Calculate our new position
     int temp_pos_x = pos_x, temp_pos_y = pos_y;
@@ -118,7 +113,19 @@ __interrupt void FIXED_UPDATE(void) {
     }
 
     // Check if paddle is colliding with blocks
-    ///char isCollidingPaddle = IsCollidingAABB()
+    Graphics_Rectangle paddle_rect = {
+                                      paddle_x, paddle_y, paddle_x + paddle_width, paddle_y + paddle_height
+    };
+    char isCollidingPaddle = IsCollidingAABB(&circleBounds, &paddle_rect);
+    isCollidingWalls |= isCollidingPaddle;
+
+    // Clear our old position
+    Graphics_setForegroundColor(&g_sContext, GRAPHICS_COLOR_BLACK);
+    Graphics_fillCircle(&g_sContext, pos_x, pos_y, circleRadius);
+
+    // If we did hit the paddle, redraw it
+    Graphics_setForegroundColor(&g_sContext, GRAPHICS_COLOR_RED);
+    Graphics_fillRectangle(&g_sContext, &paddle_rect);
 
     // Our circle is colliding
     if(isCollidingWalls != 0) {
