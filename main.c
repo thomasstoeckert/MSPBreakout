@@ -2,11 +2,13 @@
 #include "Grlib/grlib/grlib.h"      // Graphics Library Import
 #include "LcdDriver/lcd_driver.h"
 #include "graphics.h"
+#include "math_utils.h"
 #include <stdio.h>
 
 Graphics_Context g_sContext;      // Declare our graphics context for the library
 
 #define redLED BIT0
+#define circleRadius 2
 
 int main(void)
 {
@@ -53,18 +55,40 @@ __interrupt void FIXED_UPDATE(void) {
     Graphics_setForegroundColor(&g_sContext, GRAPHICS_COLOR_BLACK);
     Graphics_fillCircle(&g_sContext, pos_y, pos_x, 6);
 
-    if(pos_x + velocity_x > 127) velocity_x = -velocity_x;
-    if(pos_y + velocity_y > 127) velocity_y = -velocity_y;
-
-    if(pos_x + velocity_x < 0) velocity_x = -velocity_x;
-    if(pos_y + velocity_y < 0) velocity_y = -velocity_y;
-
     // Calculate our new position
-    pos_x += velocity_x;
-    pos_y += velocity_y;
+
+    int temp_pos_x = pos_x, temp_pos_y = pos_y;
+
+    temp_pos_x += velocity_x;
+    temp_pos_y += velocity_y;
+
+    // Create our bounds for our circle
+    Graphics_Rectangle circleBounds = {
+                                       temp_pos_x - circleRadius,
+                                       temp_pos_y - circleRadius,
+                                       temp_pos_x + circleRadius,
+                                       temp_pos_y + circleRadius
+    };
+
+    // Check if circle collides with walls
+    char isCollidingWalls = IsCollidingWalls(&circleBounds);
+
+    // Our circle is colliding
+    if(isCollidingWalls != 0) {
+        if((isCollidingWalls & (COLLIDING_NORTH | COLLIDING_SOUTH)) != 0)
+            velocity_x = -velocity_x;
+        if((isCollidingWalls & (COLLIDING_EAST | COLLIDING_WEST)) != 0)
+            velocity_y = -velocity_y;
+
+        pos_x += velocity_x;
+        pos_y += velocity_y;
+    } else {
+        pos_x = temp_pos_x;
+        pos_y = temp_pos_y;
+    }
 
     Graphics_setForegroundColor(&g_sContext, GRAPHICS_COLOR_WHITE);
-    Graphics_fillCircle(&g_sContext, pos_y, pos_x, 2);
+    Graphics_fillCircle(&g_sContext, pos_y, pos_x, circleRadius);
 
     TA0CTL &= ~TAIFG;
 
