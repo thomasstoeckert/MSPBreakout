@@ -18,10 +18,10 @@ char IsCollidingAABB(Graphics_Rectangle *r1, Graphics_Rectangle *r2) {
        r1->xMax > r2->xMin) {
 
         // We know we're colliding, now. We just need to find out how.
-        if(r2->xMin <= r1->xMin && r1->xMin <= r2->yMax) result |= COLLIDING_WEST;
+        if(r2->xMin <= r1->xMin && r1->xMin <= r2->yMax) result |= COLLIDING_SOUTH;
         if(r2->yMax <= r1->yMax && r1->yMax <= r2->yMax) result |= COLLIDING_WEST;
-        if(r2->yMin <= r1->xMax && r1->xMax <= r2->yMax) result |= COLLIDING_WEST;
-        if(r2->yMin <= r1->yMin && r1->yMin <= r2->yMax) result |= COLLIDING_WEST;
+        if(r2->yMin <= r1->xMax && r1->xMax <= r2->yMax) result |= COLLIDING_NORTH;
+        if(r2->yMin <= r1->yMin && r1->yMin <= r2->yMax) result |= COLLIDING_EAST;
 
     }
 

@@ -96,7 +96,8 @@ __interrupt void FIXED_UPDATE(void) {
         if(IsNullBlock(&blocks[i])) continue;
 
         char isCollidingBlock = IsCollidingAABB(&blocks[i], &circleBounds);
-        //isCollidingWalls |= isCollidingBlock;
+        isCollidingWalls |= isCollidingBlock;
+
         if(isCollidingBlock) {
             Graphics_setForegroundColor(&g_sContext, GRAPHICS_COLOR_BLACK);
             Graphics_fillRectangle(&g_sContext, &blocks[i]);
