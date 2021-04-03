@@ -7,15 +7,21 @@
 #include <stdio.h>
 
 Graphics_Context g_sContext;      // Declare our graphics context for the library
-Graphics_Rectangle blocks[2] = {
-                                {10, 10, 40, 40},
-                                {60, 10, 100, 20},
+Graphics_Rectangle blocks[30] = {
+                                {1, 1, 20, 8}, {22, 1, 42, 8}, {44, 1, 64, 8}, {66, 1, 86, 8}, {88, 1, 108, 8}, {110, 1, 127, 8},
+                                {1, 10, 20, 18}, {22, 10, 42, 18}, {44, 10, 64, 18}, {66, 10, 86, 18}, {88, 10, 108, 18}, {110, 10, 127, 18},
+                                {1, 20, 20, 28}, {22, 20, 42, 28}, {44, 20, 64, 28}, {66, 20, 86, 28}, {88, 20, 108, 28}, {110, 20, 127, 28},
+                                {1, 30, 20, 38}, {22, 30, 42, 38}, {44, 30, 64, 38}, {66, 30, 86, 38}, {88, 30, 108, 38}, {110, 30, 127, 38},
+                                {1, 40, 20, 48}, {22, 40, 42, 48}, {44, 40, 64, 48}, {66, 40, 86, 48}, {88, 40, 108, 48}, {110, 40, 127, 48}
 };
 
-const unsigned char numBlocks = 2;
+const unsigned char numBlocks = 30;
 const Graphics_Rectangle nullBlock = {
                                       128, 128, 128, 128
 };
+
+const int paddle_width = 20, paddle_height = 10, paddle_y = 120;
+int paddle_x = 1;
 
 #define redLED BIT0
 #define circleRadius 2
@@ -50,6 +56,12 @@ int main(void)
 	    if(!IsNullBlock(&blocks[i]))
 	        Graphics_fillRectangle(&g_sContext, &blocks[i]);
 	}
+
+	/*// Draw the initial paddle
+	Graphics_setForegroundColor(&g_sContext, GRAPHICS_COLOR_RED);
+	Graphics_Rectangle initial_paddle = {paddle_x, paddle_y, paddle_x + paddle_width, paddle_y + paddle_height};
+	Graphics_fillRectangle(&g_sContext, &initial_paddle);
+    */
 
 	/////////////////////////////////////////////////////
 	//               Initialize update timer           //
@@ -104,6 +116,9 @@ __interrupt void FIXED_UPDATE(void) {
             blocks[i] = nullBlock;
         }
     }
+
+    // Check if paddle is colliding with blocks
+    ///char isCollidingPaddle = IsCollidingAABB()
 
     // Our circle is colliding
     if(isCollidingWalls != 0) {
