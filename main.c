@@ -97,7 +97,7 @@ __interrupt void FIXED_UPDATE(void) {
     Graphics_fillRectangle(&g_sContext, &paddle_rect);
 
     readADC(&paddle_x);
-    paddle_x = ((paddle_x - 10) / 4096.0) * 128;
+    paddle_x = (paddle_x / 4096.0) * 118;
 
     paddle_rect.xMin = paddle_x;
     paddle_rect.xMax = paddle_x + paddle_width;
