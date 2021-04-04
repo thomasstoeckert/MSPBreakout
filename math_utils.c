@@ -18,10 +18,10 @@ char IsCollidingAABB(Graphics_Rectangle *r1, Graphics_Rectangle *r2) {
        r1->xMax > r2->xMin) {
 
         // We know we're colliding, now. We just need to find out how.
-        if(r2->xMin <= r1->xMin && r1->xMin <= r2->yMax) result |= COLLIDING_SOUTH;
-        if(r2->yMax <= r1->yMax && r1->yMax <= r2->yMax) result |= COLLIDING_WEST;
-        if(r2->yMin <= r1->xMax && r1->xMax <= r2->yMax) result |= COLLIDING_NORTH;
-        if(r2->yMin <= r1->yMin && r1->yMin <= r2->yMax) result |= COLLIDING_EAST;
+        if(r2->yMin <= r1->yMin && r1->yMin <= r2->yMax) result |= COLLIDING_NORTH;
+        if(r2->yMin <= r1->xMax && r1->xMax <= r2->yMax) result |= COLLIDING_EAST;
+        if(r2->yMax <= r1->yMax && r1->yMax <= r2->yMax) result |= COLLIDING_SOUTH;
+        if(r2->xMin <= r1->xMin && r1->xMin <= r2->yMax) result |= COLLIDING_WEST;
 
     }
 
@@ -37,10 +37,10 @@ char IsCollidingAABB(Graphics_Rectangle *r1, Graphics_Rectangle *r2) {
 char IsCollidingWalls(Graphics_Rectangle *ball) {
     char result = 0;
 
-    if(ball->xMin < 0)   result |= COLLIDING_NORTH;
-    if(ball->yMax > 127) result |= COLLIDING_EAST;
-    if(ball->xMax > 127) result |= COLLIDING_SOUTH;
-    if(ball->yMin < 0)   result |= COLLIDING_WEST;
+    if(ball->yMin < 0)   result |= COLLIDING_NORTH;
+    if(ball->xMax > 127) result |= COLLIDING_EAST;
+    if(ball->yMax > 117) result |= COLLIDING_SOUTH;
+    if(ball->xMin < 0)   result |= COLLIDING_WEST;
 
     return result;
 }

@@ -20,11 +20,14 @@ const Graphics_Rectangle nullBlock = {
                                       128, 128, 128, 128
 };
 
-const int paddle_width = 20, paddle_height = 10, paddle_y = 120;
+const int paddle_width = 20, paddle_height = 5, paddle_y = 110;
 unsigned int paddle_x = 1;
+
+int lives = 3;
 
 #define redLED BIT0
 #define JOY_X BIT2
+#define BUTTON BIT1
 #define circleRadius 2
 
 void initializeADC(void);
@@ -47,6 +50,11 @@ int main(void)
 	P1DIR |=  redLED;
 	P1OUT &= ~redLED;
 
+	// Configure Button Input
+	P3DIR &= ~BUTTON;
+	P3REN |=  BUTTON;
+	P3OUT |=  BUTTON;
+
 	initializeADC();
 
 	/////////////////////////////////////////////////////
@@ -55,6 +63,18 @@ int main(void)
 	Crystalfontz128x128_Init();       // Initialize our display communication
 
 	Initialize_Graphics(&g_sContext); // Prepare the display with initial commands
+
+	// Draw the UI spacer
+	Graphics_setForegroundColor(&g_sContext, GRAPHICS_COLOR_WHITE);
+	Graphics_drawLineH(&g_sContext, 0, 127, 118);
+
+	// Draw our level label
+	Graphics_drawStringCentered(&g_sContext, "Level 01", AUTO_STRING_LENGTH, 64, 123, OPAQUE_TEXT);
+
+	// Draw the lives
+	for(i = 0; i < lives; i++) {
+	    Graphics_fillCircle(&g_sContext, (i*6)+4, 123, circleRadius);
+	}
 
     // Draw our set of blocks
 	Graphics_setForegroundColor(&g_sContext, GRAPHICS_COLOR_BLUE);
@@ -86,9 +106,10 @@ int main(void)
 __interrupt void FIXED_UPDATE(void) {
     static int velocity_x = 1, velocity_y = 2;
     static int pos_x = 64, pos_y = 64;
+    static char isFree = 0;
     unsigned char i;
 
-    // Check if paddle is colliding with blocks
+    // Paddle Logic
     Graphics_Rectangle paddle_rect = {
                                       paddle_x, paddle_y, paddle_x + paddle_width, paddle_y + paddle_height
     };
@@ -97,69 +118,98 @@ __interrupt void FIXED_UPDATE(void) {
     Graphics_fillRectangle(&g_sContext, &paddle_rect);
 
     readADC(&paddle_x);
-    paddle_x = (paddle_x / 4096.0) * 118;
+    paddle_x = (paddle_x / 4095.0) * 128 - paddle_width;
 
     paddle_rect.xMin = paddle_x;
     paddle_rect.xMax = paddle_x + paddle_width;
 
-    // Calculate our new position
-    int temp_pos_x = pos_x, temp_pos_y = pos_y;
-    temp_pos_x += velocity_x;
-    temp_pos_y += velocity_y;
+    if(isFree) {
+        // Calculate our new position
+        int temp_pos_x = pos_x, temp_pos_y = pos_y;
+        temp_pos_x += velocity_x;
+        temp_pos_y += velocity_y;
 
-    // Create our bounds for our circle
-    Graphics_Rectangle circleBounds = {
-                                       temp_pos_x - circleRadius,
-                                       temp_pos_y - circleRadius,
-                                       temp_pos_x + circleRadius,
-                                       temp_pos_y + circleRadius
-    };
+        // Create our bounds for our circle
+        Graphics_Rectangle circleBounds = {
+                                           temp_pos_x - circleRadius,
+                                           temp_pos_y - circleRadius,
+                                           temp_pos_x + circleRadius,
+                                           temp_pos_y + circleRadius
+        };
 
-    // Check if circle collides with walls
-    char isCollidingWalls = IsCollidingWalls(&circleBounds);
+        // Check if circle collides with walls
+        char isCollidingWalls = IsCollidingWalls(&circleBounds);
 
-    // Check if circle is colliding with our blocks
-    for(i = 0; i < numBlocks; i++) {
-        if(IsNullBlock(&blocks[i])) continue;
+        if((isCollidingWalls & COLLIDING_SOUTH) != 0) {
+            // We've hit the bottom of the map! Set our next frame to be locked to the paddle,
+            // take a life
+            isFree = 0;
 
-        char isCollidingBlock = IsCollidingAABB(&blocks[i], &circleBounds);
-        isCollidingWalls |= isCollidingBlock;
-
-        if(isCollidingBlock) {
+            lives--;
             Graphics_setForegroundColor(&g_sContext, GRAPHICS_COLOR_BLACK);
-            Graphics_fillRectangle(&g_sContext, &blocks[i]);
-            blocks[i] = nullBlock;
+            Graphics_fillCircle(&g_sContext, (lives*6)+4, 123, circleRadius);
+        }
+
+        // Check if circle is colliding with our blocks
+        for(i = 0; i < numBlocks; i++) {
+            if(IsNullBlock(&blocks[i])) continue;
+
+            char isCollidingBlock = IsCollidingAABB(&blocks[i], &circleBounds);
+            isCollidingWalls |= isCollidingBlock;
+
+            if(isCollidingBlock) {
+                Graphics_setForegroundColor(&g_sContext, GRAPHICS_COLOR_BLACK);
+                Graphics_fillRectangle(&g_sContext, &blocks[i]);
+                blocks[i] = nullBlock;
+            }
+        }
+
+        char isCollidingPaddle = IsCollidingAABB(&circleBounds, &paddle_rect);
+        isCollidingWalls |= isCollidingPaddle;
+
+        // Clear our old position
+        Graphics_setForegroundColor(&g_sContext, GRAPHICS_COLOR_BLACK);
+        Graphics_fillCircle(&g_sContext, pos_x, pos_y, circleRadius);
+
+        // Our circle is colliding
+        if(isCollidingWalls != 0) {
+            // Find the colliding direction, flipping velocity
+            if((isCollidingWalls & (COLLIDING_EAST | COLLIDING_WEST)) != 0)
+                velocity_x = -velocity_x;
+            if((isCollidingWalls & (COLLIDING_NORTH | COLLIDING_SOUTH)) != 0)
+                velocity_y = -velocity_y;
+
+            // Apply the new vectors
+            pos_x += velocity_x;
+            pos_y += velocity_y;
+        } else {
+            // These old calcs are good, use them.
+            pos_x = temp_pos_x;
+            pos_y = temp_pos_y;
+        }
+    } else {
+        // We're not free - we're to be locked to the top of the paddle
+
+        // Clear our old position
+        Graphics_setForegroundColor(&g_sContext, GRAPHICS_COLOR_BLACK);
+        Graphics_fillCircle(&g_sContext, pos_x, pos_y, circleRadius);
+
+        // Place us above the paddle
+        pos_x = paddle_x + paddle_width / 2;
+        pos_y = paddle_y - 4;
+
+        // If the user has the release button down
+        if((P3IN & BUTTON) == 0) {
+            // Set the ball free
+            isFree = 1;
         }
     }
 
-    char isCollidingPaddle = IsCollidingAABB(&circleBounds, &paddle_rect);
-    isCollidingWalls |= isCollidingPaddle;
-
-    // Clear our old position
-    Graphics_setForegroundColor(&g_sContext, GRAPHICS_COLOR_BLACK);
-    Graphics_fillCircle(&g_sContext, pos_x, pos_y, circleRadius);
-
-    // If we did hit the paddle, redraw it
+    // Redrawing of Paddle
     Graphics_setForegroundColor(&g_sContext, GRAPHICS_COLOR_RED);
     Graphics_fillRectangle(&g_sContext, &paddle_rect);
 
-    // Our circle is colliding
-    if(isCollidingWalls != 0) {
-        // Find the colliding direction, flipping velocity
-        if((isCollidingWalls & (COLLIDING_NORTH | COLLIDING_SOUTH)) != 0)
-            velocity_x = -velocity_x;
-        if((isCollidingWalls & (COLLIDING_EAST | COLLIDING_WEST)) != 0)
-            velocity_y = -velocity_y;
-
-        // Apply the new vectors
-        pos_x += velocity_x;
-        pos_y += velocity_y;
-    } else {
-        // These old calcs are good, use them.
-        pos_x = temp_pos_x;
-        pos_y = temp_pos_y;
-    }
-
+    // Redrawing of Circle
     Graphics_setForegroundColor(&g_sContext, GRAPHICS_COLOR_WHITE);
     Graphics_fillCircle(&g_sContext, pos_x, pos_y, circleRadius);
 
