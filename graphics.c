@@ -87,3 +87,13 @@ void Draw_Points(Graphics_Context *context, unsigned int points) {
 
     Graphics_drawStringCentered(context, buff, AUTO_STRING_LENGTH, 64, 75, TRANSPARENT_TEXT);
 }
+
+void Draw_ModalBox(Graphics_Context *context, const char* line1, const char* line2, char showPoints) {
+    Graphics_Rectangle rect = { 10, 20, 110, 90 };
+    Draw_EdgedBox(context, &rect, 2, GRAPHICS_COLOR_BLACK, GRAPHICS_COLOR_BLUE);
+
+    Graphics_setForegroundColor(context, GRAPHICS_COLOR_WHITE);
+    Graphics_drawStringCentered(context, line1, AUTO_STRING_LENGTH, 64, 35, OPAQUE_TEXT);
+    Graphics_drawStringCentered(context, line2, AUTO_STRING_LENGTH, 64, 55, OPAQUE_TEXT);
+    if(showPoints) Draw_Points(context, points);
+}

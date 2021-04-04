@@ -28,5 +28,6 @@ void Draw_Paddle(Graphics_Context *context, int paddle_x, int32_t color);
 void Draw_Ball(Graphics_Context *context, int ball_x, int ball_y, int32_t color);
 void Draw_EdgedBox(Graphics_Context *context, Graphics_Rectangle *rect, int inset, int32_t backgroundColor, int32_t foregroundColor);
 void Draw_Points(Graphics_Context *context, unsigned int points);
+void Draw_ModalBox(Graphics_Context *context, const char* line1, const char* line2, char showPoints);
 
 #endif /* GRAPHICS_H_ */

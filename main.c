@@ -10,15 +10,13 @@ Graphics_Context g_sContext;      // Declare our graphics context for the librar
 Graphics_Rectangle blocks[30];
 
 const unsigned char numBlocks = 30;
-unsigned char activeBlocks = 30;
-const Graphics_Rectangle nullBlock = {
-                                      128, 128, 128, 128
-};
+const Graphics_Rectangle nullBlock = { 128, 128, 128, 128 };
 
 unsigned int paddle_x = 1;
 
 int lives = 3;
 unsigned int points = 0;
+unsigned char activeBlocks = 30;
 
 #define redLED BIT0
 #define JOY_X BIT2
@@ -130,15 +128,10 @@ __interrupt void FIXED_UPDATE(void) {
             Graphics_setForegroundColor(&g_sContext, GRAPHICS_COLOR_BLACK);
             Graphics_fillCircle(&g_sContext, (lives*6)+4, 123, circleRadius);
 
+            // Check for Loss Condition
             if(lives < 0) {
                 // We're dead. Stop the game, and establish the reset button's interrupt
-                Graphics_Rectangle killRect = { 10, 20, 110, 90 };
-                Draw_EdgedBox(&g_sContext, &killRect, 2, GRAPHICS_COLOR_BLACK, GRAPHICS_COLOR_BLUE);
-
-                Graphics_setForegroundColor(&g_sContext, GRAPHICS_COLOR_WHITE);
-                Graphics_drawStringCentered(&g_sContext, "Game Over!", AUTO_STRING_LENGTH, 64, 35, OPAQUE_TEXT);
-                Graphics_drawStringCentered(&g_sContext, "Play Again?", AUTO_STRING_LENGTH, 64, 55, OPAQUE_TEXT);
-                Draw_Points(&g_sContext, points);
+                Draw_ModalBox(&g_sContext, "Game Over!", "Play Again?", 1);
 
                 // Turn off the timer
                 TA0CTL &= ~MC_3;
@@ -167,15 +160,10 @@ __interrupt void FIXED_UPDATE(void) {
 
                 points++;
 
+                // Check for Win Condition
                 if(activeBlocks == 0) {
                     // We won! Stop the game, and establish the reset button's interrupt
-                    Graphics_Rectangle killRect = { 10, 20, 110, 90 };
-                    Draw_EdgedBox(&g_sContext, &killRect, 2, GRAPHICS_COLOR_BLACK, GRAPHICS_COLOR_BLUE);
-
-                    Graphics_setForegroundColor(&g_sContext, GRAPHICS_COLOR_WHITE);
-                    Graphics_drawStringCentered(&g_sContext, "You Win!", AUTO_STRING_LENGTH, 64, 35, OPAQUE_TEXT);
-                    Graphics_drawStringCentered(&g_sContext, "Play Again?", AUTO_STRING_LENGTH, 64, 55, OPAQUE_TEXT);
-                    Draw_Points(&g_sContext, points);
+                    Draw_ModalBox(&g_sContext, "You Win!", "Continue?", 1);
 
                     // Capture the ball
                     isFree = 0;
@@ -251,6 +239,9 @@ __interrupt void RESET_ISR() {
 
     // Set lives to max
     lives = 3;
+
+    // Rest our active block count
+    activeBlocks = 30;
 
     // Clear our screen, reset everything to zero.
     memcpy(blocks, LEVEL_1, sizeof(Graphics_Rectangle) * 30);
