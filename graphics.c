@@ -79,3 +79,11 @@ void Draw_EdgedBox(Graphics_Context *context, Graphics_Rectangle *rect, int inse
     Graphics_setForegroundColor(context, foregroundColor);
     Graphics_drawRectangle(context, &insetRect);
 }
+
+void Draw_Points(Graphics_Context *context, unsigned int points) {
+    char buff[10];
+    Graphics_setForegroundColor(context, GRAPHICS_COLOR_WHITE);
+    sprintf(buff, "%d pts", points);
+
+    Graphics_drawStringCentered(context, buff, AUTO_STRING_LENGTH, 64, 75, TRANSPARENT_TEXT);
+}

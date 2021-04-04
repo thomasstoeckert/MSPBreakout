@@ -18,6 +18,7 @@ const Graphics_Rectangle nullBlock = {
 unsigned int paddle_x = 1;
 
 int lives = 3;
+unsigned int points = 0;
 
 #define redLED BIT0
 #define JOY_X BIT2
@@ -137,6 +138,7 @@ __interrupt void FIXED_UPDATE(void) {
                 Graphics_setForegroundColor(&g_sContext, GRAPHICS_COLOR_WHITE);
                 Graphics_drawStringCentered(&g_sContext, "Game Over!", AUTO_STRING_LENGTH, 64, 35, OPAQUE_TEXT);
                 Graphics_drawStringCentered(&g_sContext, "Play Again?", AUTO_STRING_LENGTH, 64, 55, OPAQUE_TEXT);
+                Draw_Points(&g_sContext, points);
 
                 // Turn off the timer
                 TA0CTL &= ~MC_3;
@@ -163,6 +165,8 @@ __interrupt void FIXED_UPDATE(void) {
                 blocks[i] = nullBlock;
                 activeBlocks--;
 
+                points++;
+
                 if(activeBlocks == 0) {
                     // We won! Stop the game, and establish the reset button's interrupt
                     Graphics_Rectangle killRect = { 10, 20, 110, 90 };
@@ -171,6 +175,7 @@ __interrupt void FIXED_UPDATE(void) {
                     Graphics_setForegroundColor(&g_sContext, GRAPHICS_COLOR_WHITE);
                     Graphics_drawStringCentered(&g_sContext, "You Win!", AUTO_STRING_LENGTH, 64, 35, OPAQUE_TEXT);
                     Graphics_drawStringCentered(&g_sContext, "Play Again?", AUTO_STRING_LENGTH, 64, 55, OPAQUE_TEXT);
+                    Draw_Points(&g_sContext, points);
 
                     // Capture the ball
                     isFree = 0;
@@ -240,6 +245,9 @@ __interrupt void RESET_ISR() {
     // Clear flag, disable interrupt
     P3IFG &= ~BUTTON;
     P3IE  &= ~BUTTON;
+
+    // Reset points if loss
+    if(lives < 0) points = 0;
 
     // Set lives to max
     lives = 3;
