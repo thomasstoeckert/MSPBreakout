@@ -11,13 +11,13 @@ Use the joystick on the booster pack to move left and right, bouncing the ball u
 If the ball falls off the south edge of the playing field, press the button (J4.32, Button 2 on the booster pack) to send it back out. You have three spare balls, but they are replenished every five levels.
 
 ## Future Goals:
-[] More than just a single level
+- [ ] More than just a single level
    - Requires a level editor, because there's no way I'm doing that by hand
-[] Power-Ups
+- [ ] Power-Ups
    - "Punching": Ball doesn't bounce off blocks, but blows through them
    - "Multi-Ball": Multiple balls. Would involve a big of the fixed update loop. Might bring the MSP to its knees.
    - "Longer Paddle": Makes the paddle longer. More control, easier play
-[] Sound effects?
+- [ ] Sound effects?
    - Might want to experiment with that on the buzzer on the booster pack.
 
 ## Known Problems
