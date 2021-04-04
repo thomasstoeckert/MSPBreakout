@@ -7,20 +7,14 @@
 #include <stdio.h>
 
 Graphics_Context g_sContext;      // Declare our graphics context for the library
-Graphics_Rectangle blocks[30] = {
-                                {1, 1, 20, 8}, {22, 1, 42, 8}, {44, 1, 64, 8}, {66, 1, 86, 8}, {88, 1, 108, 8}, {110, 1, 127, 8},
-                                {1, 10, 20, 18}, {22, 10, 42, 18}, {44, 10, 64, 18}, {66, 10, 86, 18}, {88, 10, 108, 18}, {110, 10, 127, 18},
-                                {1, 20, 20, 28}, {22, 20, 42, 28}, {44, 20, 64, 28}, {66, 20, 86, 28}, {88, 20, 108, 28}, {110, 20, 127, 28},
-                                {1, 30, 20, 38}, {22, 30, 42, 38}, {44, 30, 64, 38}, {66, 30, 86, 38}, {88, 30, 108, 38}, {110, 30, 127, 38},
-                                {1, 40, 20, 48}, {22, 40, 42, 48}, {44, 40, 64, 48}, {66, 40, 86, 48}, {88, 40, 108, 48}, {110, 40, 127, 48}
-};
+Graphics_Rectangle blocks[30];
 
 const unsigned char numBlocks = 30;
+unsigned char activeBlocks = 30;
 const Graphics_Rectangle nullBlock = {
                                       128, 128, 128, 128
 };
 
-const int paddle_width = 20, paddle_height = 5, paddle_y = 110;
 unsigned int paddle_x = 1;
 
 int lives = 3;
@@ -35,7 +29,6 @@ int readADC(unsigned int*data);
 
 int main(void)
 {
-    unsigned char i;
 
     // Standard MSP430 Behavior
 	WDTCTL   =  WDTPW | WDTHOLD;	  // Stop Watchdog Timer
@@ -65,29 +58,10 @@ int main(void)
 
 	Initialize_Graphics(&g_sContext); // Prepare the display with initial commands
 
-	// Draw the UI spacer
-	Graphics_setForegroundColor(&g_sContext, GRAPHICS_COLOR_WHITE);
-	Graphics_drawLineH(&g_sContext, 0, 127, 118);
+	// Load our level
+	memcpy(blocks, LEVEL_1, sizeof(Graphics_Rectangle) * 30);
 
-	// Draw our level label
-	Graphics_drawStringCentered(&g_sContext, "Level 01", AUTO_STRING_LENGTH, 64, 123, OPAQUE_TEXT);
-
-	// Draw the lives
-	for(i = 0; i < lives; i++) {
-	    Graphics_fillCircle(&g_sContext, (i*6)+4, 123, circleRadius);
-	}
-
-    // Draw our set of blocks
-	Graphics_setForegroundColor(&g_sContext, GRAPHICS_COLOR_BLUE);
-	for(i = 0; i < numBlocks; i++) {
-	    if(!IsNullBlock(&blocks[i]))
-	        Graphics_fillRectangle(&g_sContext, &blocks[i]);
-	}
-
-	// Draw the initial paddle
-	Graphics_setForegroundColor(&g_sContext, GRAPHICS_COLOR_RED);
-	Graphics_Rectangle initial_paddle = {paddle_x, paddle_y, paddle_x + paddle_width, paddle_y + paddle_height};
-	Graphics_fillRectangle(&g_sContext, &initial_paddle);
+	Draw_Playspace(&g_sContext, blocks, numBlocks, lives, 1);
 
 	/////////////////////////////////////////////////////
 	//               Initialize update timer           //
@@ -118,17 +92,16 @@ __interrupt void FIXED_UPDATE(void) {
 
     // Paddle Logic
     Graphics_Rectangle paddle_rect = {
-                                      paddle_x, paddle_y, paddle_x + paddle_width, paddle_y + paddle_height
+                                      paddle_x, PADDLE_Y, paddle_x + PADDLE_WIDTH, PADDLE_Y + PADDLE_HEIGHT
     };
 
-    Graphics_setForegroundColor(&g_sContext, GRAPHICS_COLOR_BLACK);
-    Graphics_fillRectangle(&g_sContext, &paddle_rect);
+    Draw_Paddle(&g_sContext, paddle_x, GRAPHICS_COLOR_BLACK);
 
     readADC(&paddle_x);
-    paddle_x = (paddle_x / 4095.0) * 128 - paddle_width;
+    paddle_x = (paddle_x / 4095.0) * 128 - PADDLE_WIDTH;
 
     paddle_rect.xMin = paddle_x;
-    paddle_rect.xMax = paddle_x + paddle_width;
+    paddle_rect.xMax = paddle_x + PADDLE_WIDTH;
 
     if(isFree) {
         // Calculate our new position
@@ -158,21 +131,19 @@ __interrupt void FIXED_UPDATE(void) {
 
             if(lives < 0) {
                 // We're dead. Stop the game, and establish the reset button's interrupt
-                Graphics_Rectangle killRect = { 10, 20, 117, 90 };
-                Graphics_fillRectangle(&g_sContext, &killRect);
-                killRect.xMin += 2;
-                killRect.yMin += 2;
-                killRect.xMax -= 2;
-                killRect.yMax -= 2;
-                Graphics_setForegroundColor(&g_sContext, GRAPHICS_COLOR_BLUE);
-                Graphics_drawRectangle(&g_sContext, &killRect);
+                Graphics_Rectangle killRect = { 10, 20, 110, 90 };
+                Draw_EdgedBox(&g_sContext, &killRect, 2, GRAPHICS_COLOR_BLACK, GRAPHICS_COLOR_BLUE);
 
                 Graphics_setForegroundColor(&g_sContext, GRAPHICS_COLOR_WHITE);
-                Graphics_drawStringCentered(&g_sContext, "Game Over!", AUTO_STRING_LENGTH, 64, 40, OPAQUE_TEXT);
-                Graphics_drawStringCentered(&g_sContext, "Play Again?", AUTO_STRING_LENGTH, 64, 60, OPAQUE_TEXT);
+                Graphics_drawStringCentered(&g_sContext, "Game Over!", AUTO_STRING_LENGTH, 64, 35, OPAQUE_TEXT);
+                Graphics_drawStringCentered(&g_sContext, "Play Again?", AUTO_STRING_LENGTH, 64, 55, OPAQUE_TEXT);
 
                 // Turn off the timer
                 TA0CTL &= ~MC_3;
+
+                // Enable Interrupt
+                P3IE  |=  BUTTON;
+                P3IFG &= ~BUTTON;
 
                 // Break out of this
                 return;
@@ -190,6 +161,30 @@ __interrupt void FIXED_UPDATE(void) {
                 Graphics_setForegroundColor(&g_sContext, GRAPHICS_COLOR_BLACK);
                 Graphics_fillRectangle(&g_sContext, &blocks[i]);
                 blocks[i] = nullBlock;
+                activeBlocks--;
+
+                if(activeBlocks == 0) {
+                    // We won! Stop the game, and establish the reset button's interrupt
+                    Graphics_Rectangle killRect = { 10, 20, 110, 90 };
+                    Draw_EdgedBox(&g_sContext, &killRect, 2, GRAPHICS_COLOR_BLACK, GRAPHICS_COLOR_BLUE);
+
+                    Graphics_setForegroundColor(&g_sContext, GRAPHICS_COLOR_WHITE);
+                    Graphics_drawStringCentered(&g_sContext, "You Win!", AUTO_STRING_LENGTH, 64, 35, OPAQUE_TEXT);
+                    Graphics_drawStringCentered(&g_sContext, "Play Again?", AUTO_STRING_LENGTH, 64, 55, OPAQUE_TEXT);
+
+                    // Capture the ball
+                    isFree = 0;
+
+                    // Turn off the timer
+                    TA0CTL &= ~MC_3;
+
+                    // Enable Interrupt
+                    P3IE  |=  BUTTON;
+                    P3IFG &= ~BUTTON;
+
+                    // Break out of this
+                    return;
+                }
             }
         }
 
@@ -197,8 +192,7 @@ __interrupt void FIXED_UPDATE(void) {
         isCollidingWalls |= isCollidingPaddle;
 
         // Clear our old position
-        Graphics_setForegroundColor(&g_sContext, GRAPHICS_COLOR_BLACK);
-        Graphics_fillCircle(&g_sContext, pos_x, pos_y, circleRadius);
+        Draw_Ball(&g_sContext, pos_x, pos_y, GRAPHICS_COLOR_BLACK);
 
         // Our circle is colliding
         if(isCollidingWalls != 0) {
@@ -220,12 +214,11 @@ __interrupt void FIXED_UPDATE(void) {
         // We're not free - we're to be locked to the top of the paddle
 
         // Clear our old position
-        Graphics_setForegroundColor(&g_sContext, GRAPHICS_COLOR_BLACK);
-        Graphics_fillCircle(&g_sContext, pos_x, pos_y, circleRadius);
+        Draw_Ball(&g_sContext, pos_x, pos_y, GRAPHICS_COLOR_BLACK);
 
         // Place us above the paddle
-        pos_x = paddle_x + paddle_width / 2;
-        pos_y = paddle_y - 4;
+        pos_x = paddle_x + PADDLE_WIDTH / 2;
+        pos_y = PADDLE_Y - 4;
 
         // If the user has the release button down
         if((P3IN & BUTTON) == 0) {
@@ -234,14 +227,11 @@ __interrupt void FIXED_UPDATE(void) {
         }
     }
 
-    // Redrawing of Paddle
-    Graphics_setForegroundColor(&g_sContext, GRAPHICS_COLOR_RED);
-    Graphics_fillRectangle(&g_sContext, &paddle_rect);
+    Draw_Paddle(&g_sContext, paddle_x, GRAPHICS_COLOR_RED);
 
     // Redrawing of Circle
     if(lives >= 0) {
-        Graphics_setForegroundColor(&g_sContext, GRAPHICS_COLOR_WHITE);
-        Graphics_fillCircle(&g_sContext, pos_x, pos_y, circleRadius);
+        Draw_Ball(&g_sContext, pos_x, pos_y, GRAPHICS_COLOR_WHITE);
     }
 }
 
@@ -255,6 +245,13 @@ __interrupt void RESET_ISR() {
     lives = 3;
 
     // Clear our screen, reset everything to zero.
+    memcpy(blocks, LEVEL_1, sizeof(Graphics_Rectangle) * 30);
+
+    // Draw the original screen
+    Draw_Playspace(&g_sContext, blocks, numBlocks, lives, 1);
+
+    // Begin play loop
+    TA0CTL |= MC_1;
 }
 
 void initializeADC(void) {
