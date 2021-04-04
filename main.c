@@ -54,6 +54,7 @@ int main(void)
 	P3DIR &= ~BUTTON;
 	P3REN |=  BUTTON;
 	P3OUT |=  BUTTON;
+	P3IES |=  BUTTON;
 
 	initializeADC();
 
@@ -109,6 +110,12 @@ __interrupt void FIXED_UPDATE(void) {
     static char isFree = 0;
     unsigned char i;
 
+    // Clear interrupt flag
+    TA0CTL &= ~TAIFG;
+
+    // Set light
+    P1OUT ^= redLED;
+
     // Paddle Logic
     Graphics_Rectangle paddle_rect = {
                                       paddle_x, paddle_y, paddle_x + paddle_width, paddle_y + paddle_height
@@ -148,6 +155,28 @@ __interrupt void FIXED_UPDATE(void) {
             lives--;
             Graphics_setForegroundColor(&g_sContext, GRAPHICS_COLOR_BLACK);
             Graphics_fillCircle(&g_sContext, (lives*6)+4, 123, circleRadius);
+
+            if(lives < 0) {
+                // We're dead. Stop the game, and establish the reset button's interrupt
+                Graphics_Rectangle killRect = { 10, 20, 117, 90 };
+                Graphics_fillRectangle(&g_sContext, &killRect);
+                killRect.xMin += 2;
+                killRect.yMin += 2;
+                killRect.xMax -= 2;
+                killRect.yMax -= 2;
+                Graphics_setForegroundColor(&g_sContext, GRAPHICS_COLOR_BLUE);
+                Graphics_drawRectangle(&g_sContext, &killRect);
+
+                Graphics_setForegroundColor(&g_sContext, GRAPHICS_COLOR_WHITE);
+                Graphics_drawStringCentered(&g_sContext, "Game Over!", AUTO_STRING_LENGTH, 64, 40, OPAQUE_TEXT);
+                Graphics_drawStringCentered(&g_sContext, "Play Again?", AUTO_STRING_LENGTH, 64, 60, OPAQUE_TEXT);
+
+                // Turn off the timer
+                TA0CTL &= ~MC_3;
+
+                // Break out of this
+                return;
+            }
         }
 
         // Check if circle is colliding with our blocks
@@ -210,12 +239,22 @@ __interrupt void FIXED_UPDATE(void) {
     Graphics_fillRectangle(&g_sContext, &paddle_rect);
 
     // Redrawing of Circle
-    Graphics_setForegroundColor(&g_sContext, GRAPHICS_COLOR_WHITE);
-    Graphics_fillCircle(&g_sContext, pos_x, pos_y, circleRadius);
+    if(lives >= 0) {
+        Graphics_setForegroundColor(&g_sContext, GRAPHICS_COLOR_WHITE);
+        Graphics_fillCircle(&g_sContext, pos_x, pos_y, circleRadius);
+    }
+}
 
-    TA0CTL &= ~TAIFG;
+#pragma vector = PORT3_VECTOR
+__interrupt void RESET_ISR() {
+    // Clear flag, disable interrupt
+    P3IFG &= ~BUTTON;
+    P3IE  &= ~BUTTON;
 
-    P1OUT ^= redLED;
+    // Set lives to max
+    lives = 3;
+
+    // Clear our screen, reset everything to zero.
 }
 
 void initializeADC(void) {
