@@ -15,6 +15,7 @@ const Graphics_Rectangle nullBlock = { 128, 128, 128, 128 };
 unsigned int paddle_x = 1;
 
 int lives = 3;
+int level = 1;
 unsigned int points = 0;
 unsigned char activeBlocks = 30;
 
@@ -28,7 +29,6 @@ int readADC(unsigned int*data);
 
 int main(void)
 {
-
     // Standard MSP430 Behavior
 	WDTCTL   =  WDTPW | WDTHOLD;	  // Stop Watchdog Timer
 	PM5CTL0 &= ~LOCKLPM5;             // Enable GPI
@@ -60,7 +60,7 @@ int main(void)
 	// Load our level
 	memcpy(blocks, LEVEL_1, sizeof(Graphics_Rectangle) * 30);
 
-	Draw_Playspace(&g_sContext, blocks, numBlocks, lives, 1);
+	Draw_Playspace(&g_sContext, blocks, numBlocks, lives, level);
 
 	/////////////////////////////////////////////////////
 	//               Initialize update timer           //
@@ -131,7 +131,7 @@ __interrupt void FIXED_UPDATE(void) {
             // Check for Loss Condition
             if(lives < 0) {
                 // We're dead. Stop the game, and establish the reset button's interrupt
-                Draw_ModalBox(&g_sContext, "Game Over!", "Play Again?", 1);
+                Draw_ModalBox(&g_sContext, "Game Over!", "Play Again?", 1, points);
 
                 // Turn off the timer
                 TA0CTL &= ~MC_3;
@@ -163,7 +163,7 @@ __interrupt void FIXED_UPDATE(void) {
                 // Check for Win Condition
                 if(activeBlocks == 0) {
                     // We won! Stop the game, and establish the reset button's interrupt
-                    Draw_ModalBox(&g_sContext, "You Win!", "Continue?", 1);
+                    Draw_ModalBox(&g_sContext, "You Win!", "Continue?", 1, points);
 
                     // Capture the ball
                     isFree = 0;
@@ -234,8 +234,17 @@ __interrupt void RESET_ISR() {
     P3IFG &= ~BUTTON;
     P3IE  &= ~BUTTON;
 
-    // Reset points if loss
-    if(lives < 0) points = 0;
+    if(lives < 0) {
+        points = 0; // Reset points if loss
+        lives  = 3; // Reset lives if loss
+    } else {
+        level++;             // Level-up
+
+        // Every five levels, we reset the user to three lives
+        if(level % 5 == 0) {
+            lives = 3;
+        }
+    }
 
     // Set lives to max
     lives = 3;
@@ -247,7 +256,7 @@ __interrupt void RESET_ISR() {
     memcpy(blocks, LEVEL_1, sizeof(Graphics_Rectangle) * 30);
 
     // Draw the original screen
-    Draw_Playspace(&g_sContext, blocks, numBlocks, lives, 1);
+    Draw_Playspace(&g_sContext, blocks, numBlocks, lives, level);
 
     // Begin play loop
     TA0CTL |= MC_1;
