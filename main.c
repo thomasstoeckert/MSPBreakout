@@ -31,15 +31,18 @@
 #include <stdio.h>
 
 Graphics_Context g_sContext;      // Declare our graphics context for the library
+Level* level;
 Graphics_Rectangle blocks[30];
+int32_t* palette;
+char* bindings;
 
-const unsigned char numBlocks = 30;
+unsigned char numBlocks = 30;
 const Graphics_Rectangle nullBlock = { 128, 128, 128, 128 };
 
 unsigned int paddle_x = 1;
 
 int lives = 3;
-int level = 1;
+int levelNum = 0;
 unsigned int points = 0;
 unsigned char activeBlocks = 30;
 
@@ -82,9 +85,14 @@ int main(void)
 	Initialize_Graphics(&g_sContext); // Prepare the display with initial commands
 
 	// Load our level
-	memcpy(blocks, LEVEL_1, sizeof(Graphics_Rectangle) * 30);
+	level = &LEVELS[levelNum];
+	memcpy(blocks, level->blocks, sizeof(Graphics_Rectangle) * 30);
+	palette = level->colors;
+	bindings = level->bindings;
+	activeBlocks = level->numBlocks;
+	numBlocks = level->numBlocks;
 
-	Draw_Playspace(&g_sContext, blocks, numBlocks, lives, level);
+	Draw_Playspace(&g_sContext, blocks, palette, bindings, numBlocks, lives, levelNum);
 
 	/////////////////////////////////////////////////////
 	//               Initialize update timer           //
@@ -205,7 +213,7 @@ __interrupt void FIXED_UPDATE(void) {
             }
         }
 
-        char isCollidingPaddle = IsCollidingAABB(&circleBounds, &paddle_rect);
+        char isCollidingPaddle = IsCollidingAABB(&circleBounds, &paddle_rect) & ~(COLLIDING_EAST | COLLIDING_WEST);
         isCollidingWalls |= isCollidingPaddle;
 
         // Clear our old position
@@ -261,11 +269,12 @@ __interrupt void RESET_ISR() {
     if(lives < 0) {
         points = 0; // Reset points if loss
         lives  = 3; // Reset lives if loss
+        levelNum = 0;
     } else {
-        level++;             // Level-up
+        levelNum++;             // Level-up
 
         // Every five levels, we reset the user to three lives
-        if(level % 5 == 0) {
+        if(levelNum % 5 == 0) {
             lives = 3;
         }
     }
@@ -277,10 +286,15 @@ __interrupt void RESET_ISR() {
     activeBlocks = 30;
 
     // Clear our screen, reset everything to zero.
-    memcpy(blocks, LEVEL_1, sizeof(Graphics_Rectangle) * 30);
+    level = &LEVELS[levelNum % NUM_LEVELS];
+    memcpy(blocks, level->blocks, sizeof(Graphics_Rectangle) * 30);
+    palette = level->colors;
+    bindings = level->bindings;
+    numBlocks = level->numBlocks;
+    activeBlocks = level->numBlocks;
 
     // Draw the original screen
-    Draw_Playspace(&g_sContext, blocks, numBlocks, lives, level);
+    Draw_Playspace(&g_sContext, blocks, palette, bindings, numBlocks, lives, levelNum);
 
     // Begin play loop
     TA0CTL |= MC_1;

@@ -29,7 +29,7 @@ void Initialize_Graphics(Graphics_Context * context) {
     P2OUT |= BIT6;
 }
 
-void Draw_Playspace(Graphics_Context *context, Graphics_Rectangle *blocks, int numBlocks, int lives, int levelNumber) {
+void Draw_Playspace(Graphics_Context *context, Graphics_Rectangle *blocks, int32_t *colors, char *bindings, int numBlocks, int lives, int levelNumber) {
     unsigned char i;
     char levelBuffer[9];
 
@@ -42,7 +42,7 @@ void Draw_Playspace(Graphics_Context *context, Graphics_Rectangle *blocks, int n
     Graphics_drawLineH(context, 0, 127, 118);
 
     // Draw our level label
-    sprintf(levelBuffer, "Level %02d", levelNumber);
+    sprintf(levelBuffer, "Level %02d", levelNumber + 1);
     Graphics_drawStringCentered(context, levelBuffer, AUTO_STRING_LENGTH, 64, 123, OPAQUE_TEXT);
 
     // Draw the lives
@@ -53,8 +53,12 @@ void Draw_Playspace(Graphics_Context *context, Graphics_Rectangle *blocks, int n
     // Draw our set of blocks
     Graphics_setForegroundColor(context, GRAPHICS_COLOR_BLUE);
     for(i = 0; i < numBlocks; i++) {
-        if(!IsNullBlock(&blocks[i]))
-            Graphics_fillRectangle(context, &blocks[i]);
+        if(IsNullBlock(&blocks[i])) continue;
+
+        // Get the color
+        char bindingIndex = bindings[i];
+        Graphics_setForegroundColor(context, colors[bindingIndex]);
+        Graphics_fillRectangle(context, &blocks[i]);
     }
 }
 

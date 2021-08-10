@@ -23,7 +23,7 @@
  * Initialize the default settings for our graphics context and screen
  */
 void Initialize_Graphics(Graphics_Context * context);
-void Draw_Playspace(Graphics_Context *context, Graphics_Rectangle *blocks, int numBlocks, int lives, int levelNumber);
+void Draw_Playspace(Graphics_Context *context, Graphics_Rectangle *blocks, int32_t *colors, char* bindings, int numBlocks, int lives, int levelNumber);
 void Draw_Paddle(Graphics_Context *context, int paddle_x, int32_t color);
 void Draw_Ball(Graphics_Context *context, int ball_x, int ball_y, int32_t color);
 void Draw_EdgedBox(Graphics_Context *context, Graphics_Rectangle *rect, int inset, int32_t backgroundColor, int32_t foregroundColor);
